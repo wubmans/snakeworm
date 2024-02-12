@@ -5,19 +5,79 @@ let dY = 25
 let sizeX
 let sizeY
 
-let width = 800
-let height = 800
+let width = 600
+let height = 600
 let interval = 4
 
 let maxLength = 150
+let maxDeath = 512;
 
 let frameCounter = 0
+
+let colorState = "white"
+
+let fillColor = 0;
+
+let deaths = [];
+
+let pregnancy = 0;
+let decaying = false;
+
+function wormDies()
+{
+	
+	colorState = colorState === "white" ? "black" : "white"
+
+	for (let p of worm)
+	{
+		deaths[p.x][p.y] = maxDeath
+	}
+
+	worm = []
+}
+
+function updateColor()
+{
+	if (colorState === "black")
+	{
+		fillColor+= 10;
+		fillColor = min(fillColor, 255)
+		
+	}
+
+	if (colorState === "white")
+	{
+		fillColor-= 10;
+		fillColor = max(fillColor, 0)
+		
+	}
+}
 
 function updateWorm() {
 	let p = {}
 	let found = false
 
 	let rounds = 0
+
+	if (worm.length === 0 && !decaying)
+	{
+		pregnancy = 512;
+		
+		worm.push({ x: random(sizeX / 2) | 0 + 5, y : random(sizeY /2) | 0  + 5})
+		return;
+
+	}
+
+	if (pregnancy > 0)
+	{
+		pregnancy -= 10;
+		return;
+	}
+
+	if (worm.length === 0)
+	{
+		return;
+	}
 
 	while (!found) {
 
@@ -69,31 +129,45 @@ function updateWorm() {
 		
 			if (ppp)
 			{
+				
+
 				rounds++
 				if (rounds > 100)
 				{
-					rounds = 0;
-					worm = worm.slice(3, worm.length)
+					wormDies();
+					return;
 				}
 				continue
+
 			}
 		}
 
 		found = true
 
-		
 	}
-
-
 
 	worm.unshift(p);
 	worm = worm.slice(0, maxLength)
 
 }
 
-function drawWorm(worm) {
+function drawWorm(worm) 
+{
+
+	if (pregnancy > 0)
+	{
+		let chars = "123456789*  *  *   *"
+		let c = chars[min(chars.length - 1, (pregnancy / 255 * chars.length) | 0)]
+
+		fill(fillColor, 255)
+		text(c, worm[0].x * dX, worm[0].y * dY)
+		return;
+	}
+	
+
 	for (let [i, p] of worm.entries()) {
-		fill(0, (worm.length - i) / worm.length * 255 | 0)
+		fill(fillColor, (worm.length - i) / worm.length * 255 | 0)
+		fill(fillColor)
 
 		let chars = "█▓▒░"
 
@@ -103,29 +177,74 @@ function drawWorm(worm) {
 	}
 }
 
+function drawDeath()
+{
+
+	decaying = false;
+
+	for (let i = 0; i < sizeX; i++) 
+	{
+		for (let j = 0; j < sizeY; j++) {
+
+			if (deaths[i][j] > 0)
+			{
+				decaying = true;
+
+				fill(lerpColor(color(fillColor, fillColor, fillColor, deaths[i][j] > 128 ? 255 : deaths[i][j] * 2),  color(255, 0, 0, 255), deaths[i][j] / maxDeath))
+
+				// fill(255, fillColor - deaths[i][j], fillColor - deaths[i][j])
+
+				let chars = ".  .. . .::.  .. ††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††††"
+				let c = chars[min(chars.length - 1, (deaths[i][j] / maxDeath * chars.length) | 0)]
+
+				text(c, i * dX, j * dY)
+				deaths[i][j] --
+				if (random(10) > 6)
+				{
+					deaths[i][j]--
+				}
+
+				deaths[i][j] = max(0, deaths[i][j])
+				
+			}
+		}
+		
+	}
+}
+
 function setup() {
 	createCanvas(width, height);
 	textFont(font)
 	textSize(20)
 	textAlign(LEFT, TOP)
+	fill(fillColor)
 
 	sizeX = width / dX
 	sizeY = height / dY
 
-	worm = [{ x: random(sizeX) | 0, y: random(sizeY) | 0 }]
+	for (let i = 0; i < sizeX; i++) 
+	{
+		deaths[i] = []
+		for (let j = 0; j < sizeY; j++) 
+		{
+			deaths[i][j] = 0
+		}
+	}
 }
 
 function draw() {
 
 	frameCounter++
+	updateColor();
 
 	if (frameCounter % interval === 0)
 	{
 		updateWorm(worm)
 	}
 
-	background(220);
 	clear()
+	background(255 - fillColor);
+	drawDeath();	
 
 	drawWorm(worm)
 }
